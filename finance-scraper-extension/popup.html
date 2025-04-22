@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>金融数据抓取器</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      width: 320px;
+      padding: 15px;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      color: #2c3e50;
+      font-size: 18px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      font-size: 14px;
+      margin-top: 10px;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    #status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .progress {
+      background-color: #cce5ff;
+      color: #004085;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #555;
+    }
+    select, input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .button-group button {
+      flex: 1;
+    }
+    .button-visualization {
+      background-color: #27ae60;
+    }
+    .button-visualization:hover {
+      background-color: #219955;
+    }
+    .button-index {
+      background-color: #e74c3c;
+      margin-top: 15px;
+    }
+    .button-index:hover {
+      background-color: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <h1>金融数据抓取器</h1>
+  
+  <div class="container">
+    <label for="dataType">选择要抓取的数据类型：</label>
+    <select id="dataType">
+      <option value="all">所有财务数据</option>
+      <option value="current" selected>当前页面数据</option>
+    </select>
+
+    <label for="format">导出格式：</label>
+    <select id="format">
+      <option value="csv">CSV</option>
+   
+      <option value="json">JSON</option>
+    </select>
+    
+    <button id="scrapeBtn">抓取当前页面数据</button>
+    
+    <div class="button-group">
+      <button id="batchBtn">批量抓取</button>
+      <button id="visualizeBtn" class="button-visualization">数据可视化</button>
+    </div>
+    
+    <button id="indexBtn" class="button-index">财务分析平台</button>
+    
+    <div id="status"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

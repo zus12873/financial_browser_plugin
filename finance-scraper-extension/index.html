@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>财务数据分析平台</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+      <!-- 引入 marked.js 来解析 Markdown -->
+
+<style>
+    /* 全局样式 */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Arial', sans-serif;
+}
+
+.container {
+    max-width: 1200px;
+}
+
+/* 标题样式 */
+header h1 {
+    color: #343a40;
+    font-weight: bold;
+    margin-bottom: 30px;
+}
+
+/* 卡片样式 */
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin-bottom: 25px;
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    font-weight: bold;
+}
+
+/* 按钮样式 */
+.btn {
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 5px;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* 加载中样式 */
+#loadingBox {
+    text-align: center;
+    padding: 30px;
+    margin: 20px 0;
+}
+
+/* 结果区域样式 */
+#analysisResult {
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+/* 表格样式 */
+.table-responsive {
+    overflow-x: auto;
+    max-height: 600px;
+}
+
+#dataTable th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+/* 错误提示样式 */
+#errorBox {
+    border-radius: 8px;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 15px;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .btn.ms-2 {
+        margin-left: 0 !important;
+    }
+    
+    #loadingBox {
+        padding: 15px;
+    }
+} 
+</style>
+</head>
+<body>
+    <div class="container mt-4">
+        <header class="mb-4">
+            <h1 class="text-center">财务数据分析平台</h1>
+        </header>
+
+        <!-- 文件上传区域 -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        文件管理
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <form id="uploadForm" class="mb-3">
+                                    <label for="fileInput" class="form-label">上传CSV文件:</label>
+                                    <div class="input-group">
+                                        <input type="file" class="form-control" id="fileInput" accept=".csv">
+                                        <button type="submit" class="btn btn-secondary">
+                                            <i class="bi bi-upload"></i> 上传
+                                        </button>
+                                    </div>
+                                    <div class="form-text">最大文件大小: 16MB，仅支持CSV格式</div>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="fileSelect" class="form-label">选择已上传的文件:</label>
+                                <select class="form-select" id="fileSelect">
+                                    <option value="">使用默认文件</option>
+                                    <!-- 文件列表将由JavaScript动态生成 -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        分析控制面板
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="promptInput" class="form-label">自定义分析提示 (可选):</label>
+                            <textarea class="form-control" id="promptInput" rows="3" placeholder="例如: 请分析GM公司最近两年的利润趋势并给出投资建议"></textarea>
+                        </div>
+                        <button id="analyzeBtn" class="btn btn-primary">分析数据</button>
+                        <button id="viewDataBtn" class="btn btn-secondary ms-2">查看原始数据</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 上传进度和反馈 -->
+        <div id="uploadFeedback" class="alert d-none mb-4" role="alert"></div>
+
+        <!-- 加载提示 -->
+        <div id="loadingBox" class="d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-2">正在分析数据，请稍候...</p>
+        </div>
+
+        <!-- 分析结果区域 -->
+        <div id="resultBox" class="card mb-4 d-none">
+            <div class="card-header bg-success text-white">
+                分析结果
+            </div>
+            <div class="card-body">
+                <div id="analysisResult"></div>
+            </div>
+        </div>
+
+        <!-- 数据表格区域 -->
+        <div id="dataTableBox" class="card mb-4 d-none">
+            <div class="card-header bg-info text-white">
+                原始数据
+            </div>
+            <div class="card-body table-responsive">
+                <table id="dataTable" class="table table-striped table-hover">
+                    <!-- 表格内容将由JavaScript动态生成 -->
+                </table>
+            </div>
+        </div>
+
+        <!-- 错误提示区域 -->
+        <div id="errorBox" class="alert alert-danger d-none" role="alert">
+            <h4 class="alert-heading">发生错误!</h4>
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script src="bootstrap.min.js"></script>
+    <script src="index.js"></script>
+    <script src="marked.min.js"></script>
+    <!-- 如果担心 XSS，可以再加一个 DOMPurify -->
+    <script src="purify.min.js"></script>
+</body>
+</html> 
