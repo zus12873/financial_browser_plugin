@@ -3,91 +3,166 @@
 <head>
   <meta charset="UTF-8">
   <title>金融数据抓取器</title>
+  <link rel="stylesheet" href="static/css/blue-gradient.css">
   <style>
     body {
       font-family: 'Helvetica Neue', Arial, sans-serif;
       width: 320px;
+      height: auto;
       padding: 15px;
-      background-color: #f8f9fa;
+      margin: 0;
+      overflow: hidden;
+      animation: none !important; /* 禁用背景动画 */
+      background: linear-gradient(135deg, #3498db, #6ab3f0) !important; /* 固定的蓝色渐变背景 */
     }
+    
+    /* 禁用背景滚动效果 */
+    body, html {
+      background-size: 100% 100% !important;
+      background-position: center !important;
+      background-attachment: fixed !important;
+    }
+    
     h1 {
-      color: #2c3e50;
-      font-size: 18px;
+      font-size: 20px;
       text-align: center;
       margin-bottom: 20px;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      font-weight: 600;
+      letter-spacing: 0.5px;
     }
+    
     .container {
-      background-color: white;
-      border-radius: 8px;
-      padding: 15px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      padding: 18px;
+      max-height: 500px;
+      transform: none !important; /* 禁用悬停变换效果 */
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important; /* 固定阴影效果 */
+      background-color: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
+    
+    .container:hover {
+      transform: none !important;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+    }
+    
     button {
-      background-color: #3498db;
+      background: linear-gradient(135deg, rgba(26, 74, 115, 0.9), rgba(41, 137, 216, 0.9));
       color: white;
       border: none;
-      padding: 10px 15px;
-      border-radius: 4px;
+      padding: 12px 15px;
+      border-radius: 8px;
       cursor: pointer;
       width: 100%;
       font-size: 14px;
-      margin-top: 10px;
-      transition: background-color 0.2s;
+      margin-top: 12px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      font-weight: 500;
+      letter-spacing: 0.3px;
     }
+    
     button:hover {
-      background-color: #2980b9;
+      background: linear-gradient(135deg, rgba(41, 137, 216, 0.95), rgba(52, 152, 219, 0.95));
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
     }
+    
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+    }
+    
     #status {
       margin-top: 15px;
-      padding: 10px;
-      border-radius: 4px;
+      padding: 12px;
+      border-radius: 8px;
       text-align: center;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
     }
+    
     .success {
-      background-color: #d4edda;
+      background-color: rgba(212, 237, 218, 0.7);
       color: #155724;
+      border-left: 3px solid #155724;
     }
+    
     .error {
-      background-color: #f8d7da;
+      background-color: rgba(248, 215, 218, 0.7);
       color: #721c24;
+      border-left: 3px solid #721c24;
     }
+    
     .progress {
-      background-color: #cce5ff;
+      background-color: rgba(204, 229, 255, 0.7);
       color: #004085;
+      border-left: 3px solid #004085;
     }
+    
     label {
       display: block;
-      margin-bottom: 5px;
-      color: #555;
+      margin-bottom: 8px;
+      color: #fff;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
+    
     select, input {
       width: 100%;
-      padding: 8px;
-      margin-bottom: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 8px;
       box-sizing: border-box;
+      background-color: rgba(255, 255, 255, 0.3);
+      color: #0d3760;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
     }
+    
+    select:focus, input:focus {
+      outline: none;
+      border-color: rgba(41, 137, 216, 0.8);
+      box-shadow: 0 0 8px rgba(41, 137, 216, 0.5);
+      background-color: rgba(255, 255, 255, 0.4);
+    }
+    
     .button-group {
       display: flex;
       gap: 10px;
       margin-top: 15px;
     }
+    
     .button-group button {
       flex: 1;
     }
+    
     .button-visualization {
-      background-color: #27ae60;
+      background: linear-gradient(135deg, rgba(39, 174, 96, 0.9), rgba(46, 204, 113, 0.9));
     }
+    
     .button-visualization:hover {
-      background-color: #219955;
+      background: linear-gradient(135deg, rgba(46, 204, 113, 0.95), rgba(39, 174, 96, 0.95));
     }
+    
     .button-index {
-      background-color: #e74c3c;
+      background: linear-gradient(135deg, rgba(231, 76, 60, 0.9), rgba(192, 57, 43, 0.9));
       margin-top: 15px;
     }
+    
     .button-index:hover {
-      background-color: #c0392b;
+      background: linear-gradient(135deg, rgba(192, 57, 43, 0.95), rgba(231, 76, 60, 0.95));
     }
   </style>
 </head>
