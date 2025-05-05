@@ -127,15 +127,28 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
                 chrome.downloads.download({
                   url: dataUri,
                   filename: filename,
-                  saveAs: false
+                  saveAs: true
                 }, function(downloadId) {
-                  if (chrome.runtime.lastError) {
-                    console.error('下载异步数据出错:', chrome.runtime.lastError);
-                  } else if (!downloadId) {
-                    console.error('下载ID为空，下载可能失败');
+                  if (chrome.runtime.lastError || downloadId === undefined) {
+                    console.error('下载异步数据出错:', chrome.runtime.lastError || '未知错误');
+
+                    // 使用回退方式在前台页面触发下载
+                    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                      if (tabs && tabs.length > 0) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                          action: 'directDownload',
+                          data: blobData,
+                          filename: filename,
+                          mimeType: request.result.mimeType || 'text/plain'
+                        });
+                      }
+                    });
                   } else {
                     console.log(`异步数据下载已开始，ID: ${downloadId}`);
                   }
+                  
+                  // 更新批量任务结果（不论下载是否成功）
+                  finishBatchTaskItem(batchTask, currentIndex, currentUrl, true, request.result.data, filename);
                 });
               } catch (error) {
                 console.error("下载过程中出错:", error);
@@ -152,47 +165,29 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
                         data: blobData,
                         filename: filename,
                         mimeType: request.result.mimeType || 'text/plain'
+                      }, function() {
+                        // 无论下载是否成功，更新批量任务状态
+                        finishBatchTaskItem(batchTask, currentIndex, currentUrl, true, request.result.data, filename);
                       });
+                    } else {
+                      // 如果没有活动标签页，也要更新状态
+                      finishBatchTaskItem(batchTask, currentIndex, currentUrl, true, request.result.data, filename);
                     }
                   });
                 } catch (backupError) {
                   console.error("备用下载方法也失败:", backupError);
+                  finishBatchTaskItem(batchTask, currentIndex, currentUrl, true, request.result.data, filename);
                 }
               }
-              
-              // 更新批量任务结果
-              batchTask.results[currentIndex] = {
-                url: currentUrl,
-                success: true,
-                data: request.result.data,
-                fileName: filename
-              };
-              
-              // 更新completed计数（如果尚未更新）
-              if (currentIndex >= batchTask.completed) {
-                batchTask.completed = currentIndex + 1;
-              }
-              
-              // 保存更新的批量任务状态
-              chrome.storage.local.set({'currentBatchTask': batchTask});
+            } else {
+              // 没有数据但操作成功的情况
+              finishBatchTaskItem(batchTask, currentIndex, currentUrl, true, null, null, '成功但无数据');
             }
           } else {
             console.log(`收到异步结果: URL ${currentUrl} 抓取失败:`, request.result.error);
             
-            // 更新批量任务结果
-            batchTask.results[currentIndex] = {
-              url: currentUrl,
-              success: false,
-              error: request.result.error || '异步抓取失败'
-            };
-            
-            // 更新completed计数（如果尚未更新）
-            if (currentIndex >= batchTask.completed) {
-              batchTask.completed = currentIndex + 1;
-            }
-            
-            // 保存更新的批量任务状态
-            chrome.storage.local.set({'currentBatchTask': batchTask});
+            // 更新失败的任务状态
+            finishBatchTaskItem(batchTask, currentIndex, currentUrl, false, null, null, request.result.error || '异步抓取失败');
           }
         } else {
           console.error(`无效的索引: ${currentIndex}, 结果数组长度: ${batchTask.results.length}`);
@@ -213,6 +208,46 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     return true;
   }
 });
+
+// 更新批量任务项的状态和进度
+function finishBatchTaskItem(batchTask, index, url, success, data, fileName, error) {
+  // 更新批量任务结果
+  batchTask.results[index] = {
+    url: url,
+    success: success,
+    processing: false  // 确保标记为非处理中
+  };
+  
+  // 添加数据或错误信息
+  if (success && data) {
+    batchTask.results[index].data = data;
+    batchTask.results[index].fileName = fileName;
+  }
+  
+  if (!success && error) {
+    batchTask.results[index].error = error;
+  }
+  
+  // 更新completed计数（如果尚未更新）
+  if (index >= batchTask.completed) {
+    batchTask.completed = index + 1;
+  }
+  
+  // 检查是否所有任务都已完成
+  if (batchTask.completed >= batchTask.total) {
+    batchTask.inProgress = false;
+    batchTask.completedTime = new Date().toISOString();
+    console.log('所有批量抓取任务已完成');
+  }
+  
+  // 保存更新的批量任务状态
+  chrome.storage.local.set({'currentBatchTask': batchTask}, function() {
+    if (!batchTask.inProgress) {
+      // 如果任务全部完成，同时更新lastCompletedBatch
+      chrome.storage.local.set({'lastCompletedBatch': batchTask});
+    }
+  });
+}
 
 // 保存抓取到的财务数据
 function saveFinancialData(data, info, callback) {
@@ -296,17 +331,21 @@ function processNextUrl(index, batchTask, callback) {
     setTimeout(function() {
       console.log(`开始向标签页 ${tab.id} 发送抓取命令`);
       
-      // 设置数据类型 - 如果选择了多种类型，使用 'all' 一次性抓取所有表格
+      // 设置数据类型 - 使用用户选择的数据类型
       const selectedTypes = batchTask.options.dataTypes || [];
       let dataType = 'all';
       
       // 如果只选择了一种类型，则直接使用该类型
       if (selectedTypes.length === 1) {
         dataType = selectedTypes[0];
+        console.log(`仅选择了单一数据类型: ${dataType}`);
       } 
-      // 如果选择了多种类型，但没有选择全部四种类型，则提示可能无法完全满足
-      else if (selectedTypes.length > 0 && selectedTypes.length < 4) {
-        console.log(`选择了多种数据类型 ${selectedTypes.join(', ')}，将尝试全部抓取`);
+      // 如果选择了多种类型，传递数据类型列表
+      else if (selectedTypes.length > 0) {
+        dataType = selectedTypes.join(',');
+        console.log(`选择了多种数据类型: ${dataType}`);
+      } else {
+        console.log('未指定数据类型，默认使用: all');
       }
       
       // 向标签页发送抓取命令
@@ -314,10 +353,11 @@ function processNextUrl(index, batchTask, callback) {
         tab.id,
         {
           action: 'scrapeData',
-          dataType: dataType, // 使用'all'抓取所有表格，或使用特定类型
+          dataType: dataType, // 直接传递用户选择的数据类型
           format: batchTask.options.format || 'csv',
           isWindows: batchTask.isWindows,
-          isBatchScrape: true // 标记为批量抓取请求
+          isBatchScrape: true, // 标记为批量抓取请求
+          selectedDataTypes: selectedTypes // 额外传递完整的数据类型列表
         },
         function(response) {
           if (chrome.runtime.lastError) {
@@ -334,6 +374,7 @@ function processNextUrl(index, batchTask, callback) {
                   format: batchTask.options.format || 'csv',
                   isWindows: batchTask.isWindows,
                   isBatchScrape: true,
+                  selectedDataTypes: selectedTypes,
                   retry: true
                 },
                 function(retryResponse) {
@@ -344,6 +385,7 @@ function processNextUrl(index, batchTask, callback) {
                     batchTask.results.push({
                       url: currentUrl,
                       success: false,
+                      processing: false,
                       error: chrome.runtime.lastError ? chrome.runtime.lastError.message : '内容脚本未响应'
                     });
                     
@@ -353,6 +395,9 @@ function processNextUrl(index, batchTask, callback) {
                     // 更新批量任务状态
                     batchTask.completed++;
                     chrome.storage.local.set({'currentBatchTask': batchTask}, function() {
+                      // 检查是否完成所有任务
+                      checkBatchTaskCompletion(batchTask);
+                      
                       // 等待指定的延迟后，处理下一个URL
                       setTimeout(function() {
                         processNextUrl(index + 1, batchTask, callback);
@@ -374,6 +419,21 @@ function processNextUrl(index, batchTask, callback) {
       );
     }, 8000); // 增加到8秒，给页面更多加载时间
   });
+}
+
+// 检查批量任务是否已全部完成
+function checkBatchTaskCompletion(batchTask) {
+  if (batchTask.completed >= batchTask.total && batchTask.inProgress) {
+    batchTask.inProgress = false;
+    batchTask.completedTime = new Date().toISOString();
+    console.log('所有批量抓取任务已完成');
+    
+    // 保存完成状态
+    chrome.storage.local.set({
+      'currentBatchTask': batchTask,
+      'lastCompletedBatch': batchTask
+    });
+  }
 }
 
 // 处理批量抓取响应
@@ -422,8 +482,15 @@ function handleBatchResponse(response, currentUrl, tabId, index, batchTask, call
               }
               
               // 更新批量任务状态
+              updatedTask.results[index].processing = false;  // 标记为非处理中
+              updatedTask.results[index].success = false;     // 标记为失败
+              updatedTask.results[index].error = '异步处理超时';
               updatedTask.completed++;
+              
               chrome.storage.local.set({'currentBatchTask': updatedTask}, function() {
+                // 检查是否所有任务都已完成
+                checkBatchTaskCompletion(updatedTask);
+                
                 // 处理下一个URL
                 setTimeout(function() {
                   processNextUrl(index + 1, updatedTask, callback);
@@ -440,7 +507,7 @@ function handleBatchResponse(response, currentUrl, tabId, index, batchTask, call
           } catch (e) {
             console.log("关闭标签页出错，可能已经关闭", e);
           }
-        }, 5000); // 等待5秒后关闭标签页，给内容脚本一些时间处理
+        }, 35000); // 等待35秒后关闭标签页，给内容脚本一些时间处理
         
         // 更新批量任务状态但不增加completed计数，等待异步结果
         chrome.storage.local.set({'currentBatchTask': batchTask}, function() {
@@ -457,6 +524,7 @@ function handleBatchResponse(response, currentUrl, tabId, index, batchTask, call
       batchTask.results.push({
         url: currentUrl,
         success: true,
+        processing: false, // 确保标记为非处理中
         data: response.data,
         fileName: response.fileName
       });
@@ -485,12 +553,24 @@ function handleBatchResponse(response, currentUrl, tabId, index, batchTask, call
         chrome.downloads.download({
           url: dataUri,
           filename: filename,
-          saveAs: false
+          saveAs: true
         }, function(downloadId) {
-          if (chrome.runtime.lastError) {
-            console.error('下载出错:', chrome.runtime.lastError);
+          if (chrome.runtime.lastError || downloadId === undefined) {
+            console.error('下载异步数据出错:', chrome.runtime.lastError || '未知错误');
+
+            // 使用回退方式在前台页面触发下载
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs && tabs.length > 0) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                  action: 'directDownload',
+                  data: blobData,
+                  filename: filename,
+                  mimeType: response.mimeType || 'text/plain'
+                });
+              }
+            });
           } else {
-            console.log(`下载已开始，ID: ${downloadId}`);
+            console.log(`异步数据下载已开始，ID: ${downloadId}`);
           }
         });
       }
@@ -502,6 +582,9 @@ function handleBatchResponse(response, currentUrl, tabId, index, batchTask, call
       batchTask.completed++;
       console.log(`URL ${currentUrl} 处理已完成，进度: ${batchTask.completed}/${batchTask.total}`);
       chrome.storage.local.set({'currentBatchTask': batchTask}, function() {
+        // 检查是否所有任务都已完成
+        checkBatchTaskCompletion(batchTask);
+        
         // 等待指定的延迟后，处理下一个URL
         setTimeout(function() {
           processNextUrl(index + 1, batchTask, callback);
@@ -514,6 +597,7 @@ function handleBatchResponse(response, currentUrl, tabId, index, batchTask, call
     batchTask.results.push({
       url: currentUrl,
       success: false,
+      processing: false, // 确保标记为非处理中
       error: response ? response.error : '未知错误'
     });
     
@@ -524,6 +608,9 @@ function handleBatchResponse(response, currentUrl, tabId, index, batchTask, call
     batchTask.completed++;
     console.log(`URL ${currentUrl} 处理已失败，进度: ${batchTask.completed}/${batchTask.total}`);
     chrome.storage.local.set({'currentBatchTask': batchTask}, function() {
+      // 检查是否所有任务都已完成
+      checkBatchTaskCompletion(batchTask);
+      
       // 等待指定的延迟后，处理下一个URL
       setTimeout(function() {
         processNextUrl(index + 1, batchTask, callback);

@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else if (response && response.success) {
             showStatus(`数据抓取成功! 已保存为${formatSelect.value.toUpperCase()}格式`, 'success');
             
-            // 只有非异步响应时才在这里触发下载
+            // 只有非异步响应时才在这里触发下载弹窗
             if (response.data) {
               downloadData(response.data, response.fileName || generateDefaultFileName(formatSelect.value), response.mimeType);
             }
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (result && result.success) {
           showStatus(`数据抓取成功! 已保存为${result.extension.toUpperCase()}格式`, 'success');
           
-          // 触发下载
+          // 触发下载弹窗
           if (result.data) {
             downloadData(result.data, result.fileName, result.mimeType);
           }
@@ -160,23 +160,30 @@ document.addEventListener('DOMContentLoaded', function() {
     statusDiv.className = type;
   }
   
-  // 辅助函数 - 下载数据
+  // 辅助函数 - 下载数据（使用弹窗）
   function downloadData(data, filename, mimeType) {
     // 确保文件名对Windows和macOS都有效
     const sanitizedFilename = sanitizeFilename(filename);
-    const blob = new Blob([data], {type: mimeType || 'text/plain'});
-    const dataUrl = URL.createObjectURL(blob);
     
-    chrome.downloads.download({
-      url: dataUrl,
-      filename: sanitizedFilename,
-      saveAs: true
-    }, function(downloadId) {
-      // 清理URL对象以避免内存泄漏
-      if (downloadId !== undefined) {
-        setTimeout(() => URL.revokeObjectURL(dataUrl), 1000);
-      }
-    });
+    // 使用下载弹窗
+    if (window.downloadModal) {
+      window.downloadModal.show(data, sanitizedFilename, mimeType);
+    } else {
+      // 备用方法，直接下载
+      const blob = new Blob([data], {type: mimeType || 'text/plain'});
+      const dataUrl = URL.createObjectURL(blob);
+      
+      chrome.downloads.download({
+        url: dataUrl,
+        filename: sanitizedFilename,
+        saveAs: true
+      }, function(downloadId) {
+        // 清理URL对象以避免内存泄漏
+        if (downloadId !== undefined) {
+          setTimeout(() => URL.revokeObjectURL(dataUrl), 1000);
+        }
+      });
+    }
   }
   
   // 辅助函数 - 清理文件名

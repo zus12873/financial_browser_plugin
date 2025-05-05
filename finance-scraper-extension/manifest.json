@@ -41,7 +41,14 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["images/*", "bootstrap.min.css", "bootstrap.min.js", "chart.min.js"],
+      "resources": [
+        "images/*", 
+        "bootstrap.min.css", 
+        "bootstrap.min.js", 
+        "chart.min.js",
+        "static/css/*",
+        "static/js/*"
+      ],
       "matches": ["*://*/*"]
     }
   ],

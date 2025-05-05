@@ -1,140 +1,83 @@
-// 批量抓取配置页面的JavaScript
-
+// 批量抓取页面的JavaScript
 document.addEventListener('DOMContentLoaded', function() {
   // 获取UI元素
-  const inputTypeSelect = document.getElementById('inputType');
+  const setupContainer = document.getElementById('setupContainer');
+  const progressContainer = document.getElementById('progressContainer');
   const urlsInput = document.getElementById('urlsInput');
-  const csvInput = document.getElementById('csvInput');
-  const urlsTextarea = document.getElementById('urls');
-  const csvFileInput = document.getElementById('csvFile');
-  const dataTypesSelect = document.getElementById('dataTypes');
-  const formatSelect = document.getElementById('format');
-  const delayInput = document.getElementById('delay');
+  const formatSelect = document.getElementById('formatSelect');
+  const delayInput = document.getElementById('delayInput');
   const startBtn = document.getElementById('startBtn');
-  const cancelBtn = document.getElementById('cancelBtn');
-  const resultDiv = document.getElementById('result');
+  const backBtn = document.getElementById('backBtn');
+  const backToSetupBtn = document.getElementById('backToSetupBtn');
+  const progressBar = document.getElementById('progressBar');
+  const progressStats = document.getElementById('progressStats');
+  const resultsTable = document.getElementById('resultsTable').querySelector('tbody');
   
-  // 设置数据类型全选/取消全选功能
-  dataTypesSelect.addEventListener('change', function(event) {
-    // 如果点击"全部数据"选项
-    if (Array.from(dataTypesSelect.options).findIndex(opt => opt.value === 'all' && opt.selected) !== -1) {
-      // 检查是否要全选或取消全选
-      const allOption = Array.from(dataTypesSelect.options).find(opt => opt.value === 'all');
-      const isAllSelected = allOption.selected;
-      
-      // 选择或取消选择所有其他选项
-      Array.from(dataTypesSelect.options).forEach(opt => {
-        if (opt.value !== 'all') {
-          opt.selected = isAllSelected;
-        }
-      });
-    }
-  });
+  // 添加事件监听器
+  startBtn.addEventListener('click', startBatchScrape);
+  backBtn.addEventListener('click', () => window.close());
+  backToSetupBtn.addEventListener('click', showSetupView);
   
-  // 根据输入类型切换UI
-  inputTypeSelect.addEventListener('change', function() {
-    if (this.value === 'urls') {
-      urlsInput.style.display = 'block';
-      csvInput.style.display = 'none';
-    } else if (this.value === 'csv') {
-      urlsInput.style.display = 'none';
-      csvInput.style.display = 'block';
-    }
-  });
+  // 检查是否有未完成的任务
+  checkExistingTask();
   
-  // 取消按钮
-  cancelBtn.addEventListener('click', function() {
-    window.close();
-  });
+  // 检查是否有未完成的任务
+  function checkExistingTask() {
+    chrome.storage.local.get('currentBatchTask', function(data) {
+      if (data.currentBatchTask && data.currentBatchTask.inProgress) {
+        // 有未完成的任务，显示进度视图
+        setupContainer.style.display = 'none';
+        progressContainer.style.display = 'block';
+        
+        // 更新UI
+        updateProgressUI(data.currentBatchTask);
+        
+        // 开始监控任务状态
+        startTaskMonitoring();
+      }
+    });
+  }
   
-  // 开始抓取按钮
-  startBtn.addEventListener('click', function() {
-    // 重置结果区域
-    resultDiv.style.display = 'none';
-    resultDiv.className = '';
-    resultDiv.textContent = '';
-    
-    // 获取输入的URLs
-    let urls = [];
-    
-    if (inputTypeSelect.value === 'urls') {
-      // 从文本区域获取URLs
-      urls = urlsTextarea.value.split('\n')
-        .map(url => url.trim())
-        .filter(url => url.length > 0);
-    } else if (inputTypeSelect.value === 'csv' && csvFileInput.files.length > 0) {
-      // 从上传的CSV文件解析URLs
-      showResult('正在解析CSV文件...', 'info');
-      
-      parseCSVFile(csvFileInput.files[0])
-        .then(parsedUrls => {
-          if (parsedUrls.length === 0) {
-            showResult('CSV文件中未找到有效的URL', 'error');
-            return;
-          }
-          
-          // 继续批量抓取流程
-          continueWithUrls(parsedUrls);
-        })
-        .catch(error => {
-          showResult('解析CSV文件失败: ' + error, 'error');
-        });
-      
-      return; // 异步处理，这里直接返回
-    }
+  // 显示设置视图
+  function showSetupView() {
+    setupContainer.style.display = 'block';
+    progressContainer.style.display = 'none';
+  }
+  
+  // 显示进度视图
+  function showProgressView() {
+    setupContainer.style.display = 'none';
+    progressContainer.style.display = 'block';
+  }
+  
+  // 开始批量抓取
+  function startBatchScrape() {
+    // 获取URLs
+    const urls = urlsInput.value.split('\n')
+      .map(url => url.trim())
+      .filter(url => url.length > 0);
     
     if (urls.length === 0) {
-      showResult('请输入至少一个有效的URL', 'error');
+      alert('请输入至少一个有效的URL');
       return;
     }
     
-    // 继续处理URLs
-    continueWithUrls(urls);
-  });
-  
-  // 继续处理URLs的函数
-  function continueWithUrls(urls) {
-    // 获取选中的数据类型
-    const selectedTypes = Array.from(dataTypesSelect.selectedOptions).map(option => option.value);
-    
-    if (selectedTypes.length === 0) {
-      showResult('请选择至少一种数据类型', 'error');
-      return;
-    }
+    // 使用所有数据类型
+    const selectedTypes = ['income', 'balance', 'cash', 'main'];
     
     // 获取其他选项
     const format = formatSelect.value;
     const delay = parseInt(delayInput.value, 10) * 1000; // 转换为毫秒
     
-    // 显示数据类型
-    let dataTypesDisplay = selectedTypes.join(', ');
-    if (selectedTypes.includes('all')) {
-      dataTypesDisplay = '全部数据 (所有可用财务表格)';
-    }
-    
-    // 确认批量抓取配置
-    const message = `将抓取 ${urls.length} 个页面的财务数据：
-- 数据类型: ${dataTypesDisplay}
-- 导出格式: ${format}
-- 页面间延迟: ${delay/1000}秒
-
-确定继续？`;
-    
-    if (confirm(message)) {
-      startBatchScraping(urls, selectedTypes, format, delay);
-    }
-  }
-  
-  // 显示结果信息
-  function showResult(message, type) {
-    resultDiv.textContent = message;
-    resultDiv.className = type;
-    resultDiv.style.display = 'block';
-  }
-  
-  // 开始批量抓取
-  function startBatchScraping(urls, dataTypes, format, delay) {
-    showResult('准备开始批量抓取...', 'info');
+    // 创建批量任务
+    const batchTask = {
+      urls: urls,
+      options: {
+        dataTypes: selectedTypes,
+        format: format,
+        delay: delay
+      }
+    };
     
     // 发送消息到后台脚本
     chrome.runtime.sendMessage(
@@ -142,225 +85,195 @@ document.addEventListener('DOMContentLoaded', function() {
         action: 'batchScrape',
         urls: urls,
         options: {
-          dataTypes: dataTypes,
+          dataTypes: selectedTypes,
           format: format,
           delay: delay
         }
       },
       function(response) {
         if (response && response.success) {
-          showResult(`批量抓取任务已开始，将抓取 ${urls.length} 个URL。数据将自动下载到您的下载文件夹。`, 'success');
+          // 显示进度视图
+          showProgressView();
           
-          // 添加任务状态监听
-          startTaskStatusMonitoring();
+          // 清空结果表格
+          resultsTable.innerHTML = '';
+          
+          // 初始化进度
+          progressBar.style.width = '0%';
+          progressStats.textContent = `0/${urls.length} 完成`;
+          
+          // 开始监控任务状态
+          startTaskMonitoring();
         } else {
-          showResult('批量抓取失败: ' + (response ? response.error : '未知错误'), 'error');
+          alert('批量抓取失败: ' + (response ? response.error : '未知错误'));
         }
       }
     );
   }
   
-  // 监控批量任务状态
-  function startTaskStatusMonitoring() {
-    let monitorCount = 0;
-    const maxMonitorCount = 100; // 监控最多100次（约200秒），防止无限监控
-    
+  // 监控任务状态
+  function startTaskMonitoring() {
     const intervalId = setInterval(function() {
-      monitorCount++;
-      chrome.storage.local.get('currentBatchTask', function(result) {
-        if (result.currentBatchTask) {
-          const task = result.currentBatchTask;
+      chrome.storage.local.get('currentBatchTask', function(data) {
+        if (data.currentBatchTask) {
+          // 更新UI
+          updateProgressUI(data.currentBatchTask);
           
-          if (!task.inProgress) {
-            // 任务已完成
+          // 如果任务已完成，停止监控
+          if (!data.currentBatchTask.inProgress) {
             clearInterval(intervalId);
-            
-            const successCount = task.results.filter(r => r.success).length;
-            const resultMessage = `批量抓取完成！成功: ${successCount}/${task.total}`;
-            
-            // 检查是否有下载的文件
-            if (successCount > 0) {
-              showResult(resultMessage + "。数据已下载到您的下载文件夹。", 'success');
-              
-              // 添加查看结果的链接
-              const resultDiv = document.getElementById('result');
-              const viewLink = document.createElement('a');
-              viewLink.href = 'visualization.html';
-              viewLink.textContent = '点击查看数据可视化';
-              viewLink.target = '_blank';
-              viewLink.className = 'view-link';
-              resultDiv.appendChild(document.createElement('br'));
-              resultDiv.appendChild(viewLink);
-            } else {
-              showResult(resultMessage + "。未能成功抓取任何数据，请检查URL是否正确。", 'error');
-            }
-          } else {
-            // 任务进行中，更新进度
-            const progressMessage = `正在抓取... ${task.completed}/${task.total} 已完成`;
-            showResult(progressMessage, 'progress');
-            
-            // 显示已完成的URL和状态
-            let detailsHtml = '<div class="batch-details">';
-            detailsHtml += '<h4>处理详情:</h4>';
-            detailsHtml += '<ul>';
-            
-            task.results.forEach((result, idx) => {
-              const url = task.urls[idx];
-              const urlDisplay = url.length > 50 ? url.substring(0, 47) + '...' : url;
-              const status = result.success ? 
-                             '<span class="success">✓ 成功</span>' : 
-                             `<span class="error">✗ 失败 (${result.error || '未知错误'})</span>`;
-              
-              detailsHtml += `<li>${urlDisplay}: ${status}</li>`;
-            });
-            
-            // 添加正在处理的URL
-            if (task.completed < task.total) {
-              const currentUrl = task.urls[task.completed];
-              const urlDisplay = currentUrl.length > 50 ? currentUrl.substring(0, 47) + '...' : currentUrl;
-              detailsHtml += `<li>${urlDisplay}: <span class="progress">⟳ 正在处理...</span></li>`;
-            }
-            
-            detailsHtml += '</ul></div>';
-            
-            // 添加到结果div
-            const resultDiv = document.getElementById('result');
-            // 查找或创建详情容器
-            let detailsContainer = document.getElementById('batch-details-container');
-            if (!detailsContainer) {
-              detailsContainer = document.createElement('div');
-              detailsContainer.id = 'batch-details-container';
-              resultDiv.appendChild(detailsContainer);
-            }
-            detailsContainer.innerHTML = detailsHtml;
           }
-        }
-        
-        // 防止无限监控
-        if (monitorCount >= maxMonitorCount) {
-          clearInterval(intervalId);
-          showResult('监控已超时。请检查"下载"文件夹查看是否有已抓取的数据文件。', 'warning');
         }
       });
-    }, 2000); // 每2秒更新一次状态
+    }, 1000);
   }
   
-  // 解析CSV文件
-  function parseCSVFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+  // 更新进度UI
+  function updateProgressUI(task) {
+    // 更新进度条
+    const progress = (task.completed / task.total) * 100;
+    progressBar.style.width = `${progress}%`;
+    progressStats.textContent = `${task.completed}/${task.total} 完成`;
+    
+    // 清空结果表格并重新填充
+    resultsTable.innerHTML = '';
+    
+    // 构建结果表格
+    task.results.forEach((result, index) => {
+      const row = document.createElement('tr');
       
-      reader.onload = function(event) {
-        try {
-          const csvData = event.target.result;
-          // 处理不同操作系统的换行符
-          const lines = csvData.split(/\r\n|\r|\n/);
-          
-          if (lines.length === 0) {
-            reject('CSV文件为空');
-            return;
-          }
-          
-          // 检测分隔符 - 有些Windows系统可能使用分号代替逗号
-          let delimiter = ',';
-          const firstLine = lines[0];
-          if (firstLine.indexOf(';') > -1 && firstLine.indexOf(',') === -1) {
-            delimiter = ';';
-          }
-          
-          const headers = splitCSVLine(firstLine, delimiter);
-          
-          // 查找URL列的索引
-          const urlIndex = headers.findIndex(h => 
-            h.toLowerCase().trim() === 'url' || 
-            h.toLowerCase().includes('url') ||
-            h.toLowerCase().includes('链接')
-          );
-          
-          if (urlIndex === -1) {
-            // 如果找不到URL列，尝试直接使用每行的第一列
-            const urls = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-              if (!lines[i].trim()) continue;
-              
-              // 简单分割，第一列作为URL
-              const firstColumn = splitCSVLine(lines[i], delimiter)[0].trim();
-              
-              // 检查是否是有效的URL
-              if (firstColumn && (firstColumn.startsWith('http') || firstColumn.startsWith('www'))) {
-                urls.push(firstColumn);
-              }
-            }
-            
-            if (urls.length === 0) {
-              reject('CSV文件中未找到有效的URL列');
-            } else {
-              resolve(urls);
-            }
-            return;
-          }
-          
-          const urls = [];
-          
-          for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            
-            // 处理CSV中的引号等特殊情况
-            const columns = parseCSVLine(lines[i], delimiter);
-            
-            if (urlIndex < columns.length) {
-              const url = columns[urlIndex].trim().replace(/"/g, '');
-              
-              if (url && (url.startsWith('http') || url.startsWith('www'))) {
-                // 确保URL格式正确
-                urls.push(url.startsWith('www') ? 'https://' + url : url);
-              }
-            }
-          }
-          
-          resolve(urls);
-        } catch (error) {
-          reject('解析CSV时出错: ' + error.message);
-        }
-      };
+      // URL单元格
+      const urlCell = document.createElement('td');
+      const urlText = task.urls[index];
+      urlCell.textContent = urlText.length > 50 ? urlText.substring(0, 47) + '...' : urlText;
+      urlCell.title = task.urls[index]; // 鼠标悬停显示完整URL
+      row.appendChild(urlCell);
       
-      reader.onerror = function() {
-        reject('读取CSV文件失败');
-      };
+      // 状态单元格
+      const statusCell = document.createElement('td');
+      if (result.processing) {
+        statusCell.innerHTML = '<span class="status-processing">处理中...</span>';
+      } else if (result.success) {
+        statusCell.innerHTML = '<span class="status-success">成功</span>';
+      } else {
+        statusCell.innerHTML = `<span class="status-error">失败: ${result.error || '未知错误'}</span>`;
+      }
+      row.appendChild(statusCell);
       
-      reader.readAsText(file);
+      // 操作单元格
+      const actionCell = document.createElement('td');
+      
+      // 如果抓取成功，添加下载按钮
+      if (result.success && result.data) {
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'action-btn download-btn';
+        downloadBtn.textContent = '下载';
+        downloadBtn.addEventListener('click', function() {
+          // 使用下载弹窗显示结果
+          if (window.downloadModal) {
+            window.downloadModal.show(
+              result.data, 
+              result.fileName || `batch_financial_data_${index + 1}.${task.options.format}`,
+              result.mimeType || (task.options.format === 'csv' ? 'text/csv' : 'application/json')
+            );
+          } else {
+            // 备用直接下载
+            downloadData(
+              result.data, 
+              result.fileName || `batch_financial_data_${index + 1}.${task.options.format}`,
+              result.mimeType || (task.options.format === 'csv' ? 'text/csv' : 'application/json')
+            );
+          }
+        });
+        actionCell.appendChild(downloadBtn);
+      } else if (!result.processing) {
+        // 如果已处理但失败，显示重试按钮
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'action-btn retry-btn';
+        retryBtn.textContent = '重试';
+        retryBtn.addEventListener('click', function() {
+          // 实现重试逻辑
+          alert('重试功能尚未实现');
+        });
+        actionCell.appendChild(retryBtn);
+      }
+      
+      row.appendChild(actionCell);
+      resultsTable.appendChild(row);
+    });
+    
+    // 如果有正在处理中的URL
+    if (task.completed < task.total) {
+      const currentIndex = task.completed;
+      const currentUrl = task.urls[currentIndex];
+      
+      const row = document.createElement('tr');
+      
+      // URL单元格
+      const urlCell = document.createElement('td');
+      const urlText = currentUrl;
+      urlCell.textContent = urlText.length > 50 ? urlText.substring(0, 47) + '...' : urlText;
+      urlCell.title = currentUrl;
+      row.appendChild(urlCell);
+      
+      // 状态单元格
+      const statusCell = document.createElement('td');
+      statusCell.innerHTML = '<span class="status-processing">处理中...</span>';
+      row.appendChild(statusCell);
+      
+      // 空操作单元格
+      const actionCell = document.createElement('td');
+      row.appendChild(actionCell);
+      
+      resultsTable.appendChild(row);
+    }
+  }
+  
+  // 直接下载数据（备用方法）
+  function downloadData(data, filename, mimeType) {
+    // 创建Blob对象
+    const blob = new Blob([data], {type: mimeType || 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    
+    // 使用Chrome下载API
+    chrome.downloads.download({
+      url: url,
+      filename: sanitizeFilename(filename),
+      saveAs: true
+    }, function(downloadId) {
+      // 清理URL
+      if (downloadId !== undefined) {
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else {
+        console.error('下载失败:', chrome.runtime.lastError);
+        
+        // 备用下载方法
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = sanitizeFilename(filename);
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+      }
     });
   }
   
-  // 简单分割CSV行
-  function splitCSVLine(line, delimiter = ',') {
-    if (!line) return [];
-    return line.split(delimiter).map(item => item.trim());
-  }
-  
-  // 处理CSV行，考虑引号内的逗号
-  function parseCSVLine(line, delimiter = ',') {
-    const result = [];
-    let current = '';
-    let inQuotes = false;
+  // 清理文件名
+  function sanitizeFilename(filename) {
+    if (!filename) return 'financial_data.csv';
     
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === delimiter && !inQuotes) {
-        result.push(current);
-        current = '';
-      } else {
-        current += char;
-      }
+    // 替换Windows不允许的字符
+    let sanitized = filename.replace(/[\\/:*?"<>|]/g, '_');
+    
+    // 限制文件名长度
+    if (sanitized.length > 200) {
+      const extension = sanitized.split('.').pop();
+      sanitized = sanitized.substring(0, 196) + '.' + extension;
     }
     
-    // 添加最后一列
-    result.push(current);
-    
-    return result;
+    return sanitized;
   }
 }); 

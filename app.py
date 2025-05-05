@@ -198,5 +198,5 @@ def analyze_data():
         return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
-    # host='0.0.0.0' 确保任何本机来源都能连上
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    
+    app.run(host='0.0.0.0', port=5050, debug=True)

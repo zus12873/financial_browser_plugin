@@ -26,26 +26,83 @@ let batchRequestId = null;
 // 处理直接下载的函数
 function handleDirectDownload(data, filename, mimeType) {
   console.log('执行直接下载:', filename);
-  try {
-    // 创建并点击一个下载链接
-    const blob = new Blob([data], {type: mimeType || 'text/plain'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || 'financial_data.csv';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      console.log('直接下载完成');
-    }, 100);
+  
+  // 尝试使用下载弹窗
+  if (typeof window.downloadModal === 'undefined') {
+    // 动态加载下载弹窗样式和脚本
+    loadDownloadModalResources()
+      .then(() => {
+        if (window.downloadModal) {
+          console.log('使用下载弹窗');
+          window.downloadModal.show(data, filename || 'financial_data.csv', mimeType || 'text/plain');
+          return true;
+        } else {
+          return fallbackDownload();
+        }
+      })
+      .catch(error => {
+        console.error('加载下载弹窗资源失败:', error);
+        return fallbackDownload();
+      });
+  } else if (window.downloadModal) {
+    // 已加载下载弹窗
+    console.log('使用已加载的下载弹窗');
+    window.downloadModal.show(data, filename || 'financial_data.csv', mimeType || 'text/plain');
     return true;
-  } catch (error) {
-    console.error('直接下载失败:', error);
-    return false;
+  } else {
+    // 无法使用下载弹窗，使用备用方法
+    return fallbackDownload();
   }
+  
+  // 备用直接下载方法
+  function fallbackDownload() {
+    try {
+      // 创建并点击一个下载链接
+      const blob = new Blob([data], {type: mimeType || 'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'financial_data.csv';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('直接下载完成');
+      }, 100);
+      return true;
+    } catch (error) {
+      console.error('直接下载失败:', error);
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+// 动态加载下载弹窗资源
+async function loadDownloadModalResources() {
+  return new Promise((resolve, reject) => {
+    // 加载CSS
+    const cssLink = document.createElement('link');
+    cssLink.rel = 'stylesheet';
+    cssLink.href = chrome.runtime.getURL('static/css/download-modal.css');
+    document.head.appendChild(cssLink);
+    
+    // 加载JS
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('static/js/download-modal.js');
+    script.onload = () => {
+      console.log('下载弹窗JS已加载');
+      resolve();
+    };
+    script.onerror = (error) => {
+      console.error('下载弹窗JS加载失败:', error);
+      reject(error);
+    };
+    document.body.appendChild(script);
+  });
 }
 
 // 判断当前页面是否包含财务数据表格

@@ -2,239 +2,336 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>批量抓取配置 - 金融数据抓取器</title>
+  <title>批量抓取财务数据</title>
   <link rel="stylesheet" href="static/css/blue-gradient.css">
+  <link rel="stylesheet" href="static/css/download-modal.css">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #333;
+      background: linear-gradient(135deg, #3498db, #6ab3f0);
+    }
+    
+    .container {
       max-width: 800px;
-      margin: 0 auto;
+      margin: 30px auto;
+      padding: 25px;
+      border-radius: 12px;
+      background-color: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    h1, h2, h3 {
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      text-align: center;
     }
     
     h1 {
+      font-size: 28px;
+      margin-bottom: 25px;
+    }
+    
+    h2 {
       font-size: 24px;
       margin-bottom: 20px;
     }
     
-    .card {
-      border-radius: 5px;
-      padding: 20px;
-      margin-bottom: 20px;
+    h3 {
+      font-size: 20px;
+      margin-bottom: 15px;
+      color: #fff;
     }
     
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .half {
+      flex: 1;
     }
     
     label {
       display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
     
-    select, input, textarea {
+    textarea, input, select {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 8px;
       box-sizing: border-box;
+      background-color: rgba(255, 255, 255, 0.3);
+      color: #0d3760;
       font-size: 14px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
     }
     
-    textarea {
-      height: 150px;
-      resize: vertical;
+    textarea:focus, input:focus, select:focus {
+      outline: none;
+      border-color: rgba(41, 137, 216, 0.8);
+      box-shadow: 0 0 8px rgba(41, 137, 216, 0.5);
+      background-color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    .checkbox-label input {
+      width: auto;
+      margin-right: 8px;
     }
     
     button {
-      padding: 10px 15px;
-      background-color: #4CAF50;
-      color: white;
+      padding: 12px 18px;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
-    }
-    
-    button:hover {
-      background-color: #45a049;
-    }
-    
-    .btn-secondary {
-      background-color: #f1f1f1;
-      color: #333;
-    }
-    
-    .btn-secondary:hover {
-      background-color: #e7e7e7;
-    }
-    
-    .buttons {
-      text-align: right;
-      margin-top: 20px;
-    }
-    
-    .buttons button {
-      margin-left: 10px;
-    }
-    
-    small {
-      display: block;
-      margin-top: 5px;
-      color: #666;
-    }
-    
-    #result {
-      padding: 15px;
-      border-radius: 4px;
-      margin-top: 20px;
-      word-wrap: break-word;
-    }
-    
-    .info {
-      background-color: #d9edf7;
-      color: #31708f;
-    }
-    
-    .success {
-      background-color: #dff0d8;
-      color: #3c763d;
-    }
-    
-    .error {
-      background-color: #f2dede;
-      color: #a94442;
-    }
-    
-    .progress {
-      background-color: #fcf8e3;
-      color: #8a6d3b;
-    }
-    
-    .warning {
-      background-color: #fcf8e3;
-      color: #8a6d3b;
-    }
-    
-    /* 新增样式 */
-    .batch-details {
-      margin-top: 15px;
-      padding: 10px;
-      background-color: #f9f9f9;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-    }
-    
-    .batch-details h4 {
-      margin-top: 0;
-      margin-bottom: 10px;
-      font-size: 16px;
-    }
-    
-    .batch-details ul {
-      margin: 0;
-      padding-left: 20px;
-    }
-    
-    .batch-details li {
-      margin-bottom: 5px;
-      font-size: 14px;
-      word-break: break-all;
-    }
-    
-    .batch-details .success {
-      background-color: transparent;
-      color: #3c763d;
-      font-weight: bold;
-    }
-    
-    .batch-details .error {
-      background-color: transparent;
-      color: #a94442;
-      font-weight: bold;
-    }
-    
-    .batch-details .progress {
-      background-color: transparent;
-      color: #8a6d3b;
-      font-weight: bold;
-    }
-    
-    .view-link {
-      display: inline-block;
+      font-weight: 500;
+      transition: all 0.3s ease;
       margin-top: 10px;
-      padding: 5px 10px;
-      background-color: #4CAF50;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-size: 14px;
     }
     
-    .view-link:hover {
-      background-color: #45a049;
+    .primary-button {
+      background: linear-gradient(135deg, rgba(26, 74, 115, 0.9), rgba(41, 137, 216, 0.9));
+      color: white;
+      width: 100%;
+    }
+    
+    .primary-button:hover {
+      background: linear-gradient(135deg, rgba(41, 137, 216, 0.95), rgba(52, 152, 219, 0.95));
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .secondary-button {
+      background-color: rgba(255, 255, 255, 0.3);
+      color: #0d3760;
+      width: 100%;
+      margin-top: 10px;
+    }
+    
+    .secondary-button:hover {
+      background-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 进度部分 */
+    .progress-info {
+      margin-bottom: 25px;
+    }
+    
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .progress-header h2 {
+      margin: 0;
+      text-align: left;
+    }
+    
+    #progressStats {
+      color: #fff;
+      font-weight: 500;
+      background-color: rgba(41, 137, 216, 0.3);
+      padding: 5px 12px;
+      border-radius: 20px;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+    
+    .progress-bar-container {
+      height: 20px;
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #2ecc71, #27ae60);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    /* 结果表格 */
+    .results-container {
+      margin-top: 30px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background-color: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    th {
+      background-color: rgba(41, 137, 216, 0.3);
+      color: #fff;
+      font-weight: 500;
+    }
+    
+    tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .status-success {
+      color: #27ae60;
+      font-weight: 500;
+    }
+    
+    .status-error {
+      color: #e74c3c;
+      font-weight: 500;
+    }
+    
+    .status-processing {
+      color: #3498db;
+      font-weight: 500;
+      animation: pulse 1.5s infinite;
+    }
+    
+    /* 操作按钮 */
+    .action-btn {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    
+    .download-btn {
+      background-color: #3498db;
+      color: white;
+    }
+    
+    .download-btn:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+    
+    .retry-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    .retry-btn:hover {
+      background-color: #c0392b;
+      transform: translateY(-2px);
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
     }
   </style>
 </head>
 <body>
-  <h1>批量抓取财务数据</h1>
-  
-  <div class="card">
-    <div class="form-group">
-      <label for="inputType">输入方式：</label>
-      <select id="inputType">
-        <option value="urls">直接输入URLs</option>
-        <option value="csv">上传CSV文件</option>
-      </select>
+  <div class="container">
+    <h1>批量抓取财务数据</h1>
+    
+    <div id="setupContainer">
+      <div class="form-group">
+        <label for="urlsInput">输入要抓取的URL列表（每行一个URL）：</label>
+        <textarea id="urlsInput" rows="10" placeholder="输入URL，每行一个。例如：&#10;https://example.com/finance/page1&#10;https://example.com/finance/page2"></textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group half">
+          <label for="formatSelect">导出格式：</label>
+          <select id="formatSelect">
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+        
+        <div class="form-group half">
+          <label for="delayInput">请求间隔（秒）：</label>
+          <input type="number" id="delayInput" min="1" max="30" value="5">
+        </div>
+      </div>
+      
+      <button id="startBtn" class="primary-button">开始批量抓取</button>
+      <button id="backBtn" class="secondary-button">返回</button>
     </div>
     
-    <div id="urlsInput" class="form-group">
-      <label for="urls">输入网址（每行一个URL）：</label>
-      <textarea id="urls" placeholder="https://example.com/finance/AAPL/income-statement
-https://example.com/finance/MSFT/income-statement
-https://example.com/finance/GOOG/income-statement"></textarea>
-    </div>
-    
-    <div id="csvInput" class="form-group" style="display:none;">
-      <label for="csvFile">上传包含URL和股票代码的CSV文件：</label>
-      <input type="file" id="csvFile" accept=".csv">
-    </div>
-    
-    <div class="form-group">
-      <label for="dataTypes">要抓取的数据类型：</label>
-      <select id="dataTypes" multiple>
-        <option value="all" selected>全部数据</option>
-        <option value="income" selected>利润表</option>
-        <option value="balance" selected>资产负债表</option>
-        <option value="cashflow" selected>现金流量表</option>
-        <option value="ratios" selected>财务比率</option>
-      </select>
-      <small>按住Ctrl键可选择多个。选择"全部数据"会尝试抓取所有可用的财务表格。</small>
-    </div>
-    
-    <div class="form-group">
-      <label for="format">导出格式：</label>
-      <select id="format">
-        <option value="csv">CSV</option>
-        <option value="excel">Excel</option>
-        <option value="json">JSON</option>
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label for="delay">网页间延迟（秒）：</label>
-      <input type="number" id="delay" min="1" max="10" value="3">
-    </div>
-    
-    <div class="buttons">
-      <button id="cancelBtn" class="btn-secondary">取消</button>
-      <button id="startBtn">开始抓取</button>
+    <div id="progressContainer" style="display: none;">
+      <div class="progress-info">
+        <div class="progress-header">
+          <h2>抓取进度</h2>
+          <div id="progressStats">0/0 完成</div>
+        </div>
+        <div class="progress-bar-container">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
+      
+      <div class="results-container">
+        <h3>抓取结果</h3>
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>URL</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- 结果将在这里动态添加 -->
+          </tbody>
+        </table>
+      </div>
+      
+      <button id="backToSetupBtn" class="secondary-button">返回设置</button>
     </div>
   </div>
   
-  <div id="result" style="display:none;"></div>
-  
+  <script src="static/js/download-modal.js"></script>
   <script src="batch.js"></script>
 </body>
 </html> 
