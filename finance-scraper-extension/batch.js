@@ -34,9 +34,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 开始监控任务状态
         startTaskMonitoring();
-      }
-    });
-  }
+        }
+      });
+    }
   
   // 显示设置视图
   function showSetupView() {
@@ -54,8 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function startBatchScrape() {
     // 获取URLs
     const urls = urlsInput.value.split('\n')
-      .map(url => url.trim())
-      .filter(url => url.length > 0);
+        .map(url => url.trim())
+        .filter(url => url.length > 0);
     
     if (urls.length === 0) {
       alert('请输入至少一个有效的URL');

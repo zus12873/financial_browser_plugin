@@ -170,19 +170,19 @@ document.addEventListener('DOMContentLoaded', function() {
       window.downloadModal.show(data, sanitizedFilename, mimeType);
     } else {
       // 备用方法，直接下载
-      const blob = new Blob([data], {type: mimeType || 'text/plain'});
-      const dataUrl = URL.createObjectURL(blob);
-      
-      chrome.downloads.download({
-        url: dataUrl,
-        filename: sanitizedFilename,
-        saveAs: true
-      }, function(downloadId) {
-        // 清理URL对象以避免内存泄漏
-        if (downloadId !== undefined) {
-          setTimeout(() => URL.revokeObjectURL(dataUrl), 1000);
-        }
-      });
+    const blob = new Blob([data], {type: mimeType || 'text/plain'});
+    const dataUrl = URL.createObjectURL(blob);
+    
+    chrome.downloads.download({
+      url: dataUrl,
+      filename: sanitizedFilename,
+      saveAs: true
+    }, function(downloadId) {
+      // 清理URL对象以避免内存泄漏
+      if (downloadId !== undefined) {
+        setTimeout(() => URL.revokeObjectURL(dataUrl), 1000);
+      }
+    });
     }
   }
   

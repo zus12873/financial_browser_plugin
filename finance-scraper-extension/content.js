@@ -56,26 +56,26 @@ function handleDirectDownload(data, filename, mimeType) {
   
   // 备用直接下载方法
   function fallbackDownload() {
-    try {
-      // 创建并点击一个下载链接
-      const blob = new Blob([data], {type: mimeType || 'text/plain'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename || 'financial_data.csv';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        console.log('直接下载完成');
-      }, 100);
-      return true;
-    } catch (error) {
-      console.error('直接下载失败:', error);
-      return false;
-    }
+  try {
+    // 创建并点击一个下载链接
+    const blob = new Blob([data], {type: mimeType || 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'financial_data.csv';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      console.log('直接下载完成');
+    }, 100);
+    return true;
+  } catch (error) {
+    console.error('直接下载失败:', error);
+    return false;
+  }
   }
   
   return true;

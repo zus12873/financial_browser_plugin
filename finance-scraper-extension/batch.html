@@ -273,10 +273,10 @@
 </head>
 <body>
   <div class="container">
-    <h1>批量抓取财务数据</h1>
-    
+  <h1>批量抓取财务数据</h1>
+  
     <div id="setupContainer">
-      <div class="form-group">
+    <div class="form-group">
         <label for="urlsInput">输入要抓取的URL列表（每行一个URL）：</label>
         <textarea id="urlsInput" rows="10" placeholder="输入URL，每行一个。例如：&#10;https://example.com/finance/page1&#10;https://example.com/finance/page2"></textarea>
       </div>
@@ -287,15 +287,15 @@
           <select id="formatSelect">
             <option value="csv">CSV</option>
             <option value="json">JSON</option>
-          </select>
-        </div>
-        
+      </select>
+    </div>
+    
         <div class="form-group half">
           <label for="delayInput">请求间隔（秒）：</label>
           <input type="number" id="delayInput" min="1" max="30" value="5">
         </div>
-      </div>
-      
+    </div>
+    
       <button id="startBtn" class="primary-button">开始批量抓取</button>
       <button id="backBtn" class="secondary-button">返回</button>
     </div>
@@ -308,9 +308,9 @@
         </div>
         <div class="progress-bar-container">
           <div id="progressBar" class="progress-bar"></div>
-        </div>
-      </div>
-      
+    </div>
+    </div>
+    
       <div class="results-container">
         <h3>抓取结果</h3>
         <table id="resultsTable">
@@ -325,8 +325,8 @@
             <!-- 结果将在这里动态添加 -->
           </tbody>
         </table>
-      </div>
-      
+    </div>
+    
       <button id="backToSetupBtn" class="secondary-button">返回设置</button>
     </div>
   </div>
